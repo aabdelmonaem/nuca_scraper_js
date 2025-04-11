@@ -29,7 +29,7 @@ jobs:
         run: ls -l all_zones_combined.json
 
       - name: 💾 Upload JSON result
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: all_zones_json
           path: all_zones_combined.json
