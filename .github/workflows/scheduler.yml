@@ -24,6 +24,10 @@ jobs:
       - name: 🕷️ Run scraper
         run: node scrape.js
 
+      # Debugging step to verify file existence
+      - name: 🛠️ Verify JSON file
+        run: ls -l all_zones_combined.json
+
       - name: 💾 Upload JSON result
         uses: actions/upload-artifact@v3
         with:
