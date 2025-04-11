@@ -1,0 +1,31 @@
+name: Run NUCA Scraper
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"  # ⏰ Every 5 minutes
+  workflow_dispatch:        # 🔘 Manual run from GitHub UI
+
+jobs:
+  run-scraper:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout code
+        uses: actions/checkout@v3
+
+      - name: 🔧 Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: 📦 Install dependencies
+        run: npm install
+
+      - name: 🕷️ Run scraper
+        run: node scrape.js
+
+      - name: 💾 Upload JSON result
+        uses: actions/upload-artifact@v3
+        with:
+          name: all_zones_json
+          path: all_zones_combined.json
