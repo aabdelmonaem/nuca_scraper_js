@@ -1,15 +1,28 @@
 const axios = require('axios');
+const axiosRetry = require('axios-retry').default; // ✅ fixed
 const cheerio = require('cheerio');
 const fs = require('fs');
+const pLimit = require('p-limit');
+const https = require('https');
 
-// Global config
-const headers = {
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
-  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-  "Referer": "https://lands.nuca.gov.eg/",
-};
+// Axios instance with retry and keep-alive
+const session = axios.create({
+  httpsAgent: new https.Agent({ keepAlive: true }),
+  headers: {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Referer": "https://lands.nuca.gov.eg/",
+  }
+});
 
-const session = axios.create({ headers });
+
+
+axiosRetry(session, {
+  retries: 5,
+  retryDelay: axiosRetry.exponentialDelay,
+  retryCondition: (error) =>
+    axiosRetry.isNetworkOrIdempotentRequestError(error) || error.code === 'ECONNRESET'
+});
 
 async function extractHiddenFields($) {
   const ids = [
@@ -45,54 +58,64 @@ async function scrapeZone(zoneId, districtName, allRows) {
   const baseUrl = `https://lands.nuca.gov.eg/ar/ViewZone.aspx?ID=${zoneId}`;
   let page = 1;
 
-  let response = await session.get(baseUrl);
-  let $ = cheerio.load(response.data);
-  let state = await extractHiddenFields($);
+  try {
+    let response = await session.get(baseUrl);
+    let $ = cheerio.load(response.data);
+    let state = await extractHiddenFields($);
 
-  while (true) {
-    console.log(`📄 Page ${page} | Zone ${zoneId} | ${districtName}`);
+    while (true) {
+      console.log(`📄 Page ${page} | Zone ${zoneId} | ${districtName}`);
 
-    const rows = parseTable($);
-    if (!rows || rows.length === 0) break;
+      const rows = parseTable($);
+      if (!rows || rows.length === 0) break;
 
-    rows.forEach(row => {
-      row["ZoneID"] = zoneId;
-      row["Page"] = page;
-      row["District"] = districtName;
-      allRows.push(row);
-    });
+      rows.forEach(row => {
+        row["ZoneID"] = zoneId;
+        row["Page"] = page;
+        row["District"] = districtName;
+        allRows.push(row);
+      });
 
-    const pager = $('tr.footer');
-    const nextLink = pager.find(`a:contains('${page + 1}')`);
-    if (!nextLink.length) break;
+      const pager = $('tr.footer');
+      const nextLink = pager.find(`a:contains('${page + 1}')`);
+      if (!nextLink.length) break;
 
-    const href = nextLink.attr('href');
-    const match = /__doPostBack\('([^']+)'/.exec(href);
-    const eventTarget = match ? match[1] : null;
-    if (!eventTarget) break;
+      const href = nextLink.attr('href');
+      const match = /__doPostBack\('([^']+)'/.exec(href);
+      const eventTarget = match ? match[1] : null;
+      if (!eventTarget) break;
 
-    const postData = new URLSearchParams({
-      "ctl00$ToolkitScriptManager1": `ctl00$MainContent$pnlPageContainer|${eventTarget}`,
-      "__ASYNCPOST": "true",
-      "__EVENTTARGET": eventTarget,
-      "__EVENTARGUMENT": `Page$${page + 1}`,
-      ...state
-    });
+      const postData = new URLSearchParams({
+        "ctl00$ToolkitScriptManager1": `ctl00$MainContent$pnlPageContainer|${eventTarget}`,
+        "__ASYNCPOST": "true",
+        "__EVENTTARGET": eventTarget,
+        "__EVENTARGUMENT": `Page$${page + 1}`,
+        ...state
+      });
 
-    response = await session.post(baseUrl, postData.toString(), {
-      headers: { ...headers, "Content-Type": "application/x-www-form-urlencoded" }
-    });
+      response = await session.post(baseUrl, postData.toString(), {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        }
+      });
 
-    const parts = response.data.split('|');
-    const htmlFragmentIndex = parts.findIndex(
-      (v, i) => v === "updatePanel" && parts[i + 1] === "MainContent_pnlPageContainer"
-    );
-    if (htmlFragmentIndex === -1) break;
+      const parts = response.data.split('|');
+      const htmlFragmentIndex = parts.findIndex(
+        (v, i) => v === "updatePanel" && parts[i + 1] === "MainContent_pnlPageContainer"
+      );
+      if (htmlFragmentIndex === -1) break;
 
-    const fragment = parts[htmlFragmentIndex + 2];
-    $ = cheerio.load(fragment);
-    state = await extractHiddenFields($);
-    page++;
+      const fragment = parts[htmlFragmentIndex + 2];
+      $ = cheerio.load(fragment);
+      state = await extractHiddenFields($);
+      page++;
+    }
+  } catch (err) {
+    if (err.code === 'ECONNRESET') {
+      console.error(`🚨 ECONNRESET while fetching zone ${zoneId}`);
+    } else {
+      console.error(`❌ Error scraping zone ${zoneId}:`, err.message);
+    }
   }
 }
 
@@ -108,23 +131,17 @@ async function scrapeZone(zoneId, districtName, allRows) {
   };
 
   const allRows = [];
+  const limit = pLimit(3); // Max 3 concurrent zones
+  const tasks = [];
 
   for (const [district, zoneIds] of Object.entries(districts)) {
     for (const zoneId of zoneIds) {
-      await scrapeZone(zoneId, district, allRows);
+      tasks.push(limit(() => scrapeZone(zoneId, district, allRows)));
     }
   }
 
+  await Promise.all(tasks);
+
   fs.writeFileSync('all_zones_combined.json', JSON.stringify(allRows, null, 2), 'utf-8');
   console.log(`✅ Done. Total rows: ${allRows.length} saved to all_zones_combined.json`);
-
-//   // Save to CSV
-//   const csvHeaders = Object.keys(allRows[0]);
-//   const csv = [
-//     csvHeaders.join(','),
-//     ...allRows.map(row => csvHeaders.map(h => `"${(row[h] || '').replace(/"/g, '""')}"`).join(','))
-//   ].join('\n');
-
-//   fs.writeFileSync('all_zones_combined.csv', csv, 'utf-8');
-//   console.log(`✅ Done. Total rows: ${allRows.length}`);
 })();
