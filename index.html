@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NUCA CSV Viewer</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 20px; }
+    select, input { margin-right: 10px; padding: 5px; }
+    select[multiple] { height: 120px; width: 250px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { padding: 8px; border: 1px solid #ccc; text-align: left; }
+    th { background: #f2f2f2; }
+    #status { margin-top: 10px; color: green; font-style: italic; }
+  </style>
+</head>
+<body>
+  <h1>📊 NUCA CSV Viewer</h1>
+
+  <label><strong>District (multi-select):</strong>
+    <select id="districtFilter" multiple></select>
+  </label>
+
+  <label><strong>Plot No. (القطعة):</strong>
+    <input type="text" id="plotInput" placeholder="e.g. 101,102,103" />
+  </label>
+
+  <div id="status">🔄 Loading data...</div>
+
+  <table id="dataTable">
+    <thead></thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    let rawData = [];
+    const plotField = "القطعة";
+
+    async function loadCSV() {
+      try {
+        const response = await fetch(`./all_zones_combined.csv?t=${Date.now()}`);
+        const text = await response.text();
+        const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
+        rawData = parsed.data;
+
+        document.getElementById('status').textContent = `✅ Data refreshed at ${new Date().toLocaleTimeString()}`;
+
+        // Populate district list once
+        if (!document.getElementById('districtFilter').options.length) {
+          populateDistricts(rawData);
+        }
+
+        filterAndRender();
+      } catch (error) {
+        document.getElementById('status').textContent = '❌ Failed to load data.';
+        console.error(error);
+      }
+    }
+
+    function populateDistricts(data) {
+      const districtSelect = document.getElementById('districtFilter');
+      const districts = [...new Set(data.map(d => d.District))].sort();
+
+      districts.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d;
+        opt.textContent = d;
+        districtSelect.appendChild(opt);
+      });
+
+      districtSelect.addEventListener('change', filterAndRender);
+      document.getElementById('plotInput').addEventListener('input', filterAndRender);
+    }
+
+    function filterAndRender() {
+      const selectedDistricts = Array.from(document.getElementById('districtFilter').selectedOptions).map(o => o.value);
+      const plotInput = document.getElementById('plotInput').value.trim();
+      const plotValues = plotInput
+        ? plotInput.split(',').map(p => p.trim()).filter(Boolean)
+        : [];
+
+      const filtered = rawData.filter(row => {
+        const matchDistrict = selectedDistricts.length === 0 || selectedDistricts.includes(row.District);
+        const matchPlot = plotValues.length === 0 || plotValues.includes(row[plotField]);
+        return matchDistrict && matchPlot;
+      });
+
+      renderTable(filtered);
+    }
+
+    function renderTable(data) {
+      const table = document.getElementById('dataTable');
+      const thead = table.querySelector('thead');
+      const tbody = table.querySelector('tbody');
+
+      thead.innerHTML = '';
+      tbody.innerHTML = '';
+
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="100%">No results found.</td></tr>';
+        return;
+      }
+
+      const headers = Object.keys(data[0]);
+      const headerRow = document.createElement('tr');
+      headers.forEach(h => {
+        const th = document.createElement('th');
+        th.textContent = h;
+        headerRow.appendChild(th);
+      });
+      thead.appendChild(headerRow);
+
+      data.forEach(row => {
+        const tr = document.createElement('tr');
+        headers.forEach(h => {
+          const td = document.createElement('td');
+          td.textContent = row[h];
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+    }
+
+    // ⏱ Initial load + refresh every 30 seconds
+    loadCSV();
+    setInterval(loadCSV, 5000);
+  </script>
+</body>
+</html>
