@@ -1,19 +1,52 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>NUCA CSV Viewer</title>
   <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
-    body { font-family: sans-serif; margin: 20px; }
-    select, input { margin-right: 10px; padding: 5px; }
-    select[multiple] { height: 120px; width: 250px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { padding: 8px; border: 1px solid #ccc; text-align: left; }
-    th { background: #f2f2f2; }
-    #status { margin-top: 10px; color: green; font-style: italic; }
+    body {
+      font-family: sans-serif;
+      margin: 20px;
+    }
+
+    select,
+    input {
+      margin-right: 10px;
+      padding: 5px;
+    }
+
+    select[multiple] {
+      height: 120px;
+      width: 250px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+
+    th,
+    td {
+      padding: 8px;
+      border: 1px solid #ccc;
+      text-align: left;
+    }
+
+    th {
+      background: #f2f2f2;
+    }
+
+    #status {
+      margin-top: 10px;
+      color: green;
+      font-style: italic;
+    }
   </style>
 </head>
+
 <body>
   <h1>📊 NUCA CSV Viewer</h1>
 
@@ -26,6 +59,8 @@
   </label>
 
   <div id="status">🔄 Loading data...</div>
+  <h2>📄 CSV Last Updated:</h2>
+  <p id="last-updated">Loading...</p>
 
   <table id="dataTable">
     <thead></thead>
@@ -34,7 +69,11 @@
 
   <script>
     let rawData = [];
+    
     const plotField = "القطعة";
+    const owner = "aabdelmonaem";
+    const repo = "nuca_scraper_js";
+    const filePath = "all_zones_combined.csv";
 
     async function loadCSV() {
       try {
@@ -120,10 +159,32 @@
         tbody.appendChild(tr);
       });
     }
+    async function fetchLastCommit() {
+      const url = `https://api.github.com/repos/${owner}/${repo}/commits?path=${filePath}&per_page=1`;
+
+      try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (data.length > 0) {
+          const commitDate = new Date(data[0].commit.committer.date);
+          document.getElementById("last-updated").innerText =
+            commitDate.toUTCString();
+        } else {
+          document.getElementById("last-updated").innerText =
+            "No commit history found.";
+        }
+      } catch (err) {
+        document.getElementById("last-updated").innerText =
+          "Error fetching commit data.";
+        console.error(err);
+      }
+    }
 
     // ⏱ Initial load + refresh every 30 seconds
     loadCSV();
     setInterval(loadCSV, 5000);
   </script>
 </body>
+
 </html>
