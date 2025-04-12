@@ -44,6 +44,13 @@
       color: green;
       font-style: italic;
     }
+    #info-bar {
+      display: flex;
+      gap: 20px;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+      align-items: center;
+    }
   </style>
 </head>
 
@@ -58,9 +65,10 @@
     <input type="text" id="plotInput" placeholder="e.g. 101,102,103" />
   </label>
 
-  <div id="status">🔄 Loading data...</div>
-  <h2>📄 CSV Last Updated:</h2>
-  <p id="last-updated">Loading...</p>
+  <div id="info-bar">
+    <div id="status">🔄 Loading data...</div>
+    <div id="last-updated">📄 CSV Last Updated: Loading...</div>
+  </div>
 
   <table id="dataTable">
     <thead></thead>
