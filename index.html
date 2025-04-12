@@ -90,6 +90,8 @@
         }
 
         filterAndRender();
+
+        fetchLastCommit();
       } catch (error) {
         document.getElementById('status').textContent = '❌ Failed to load data.';
         console.error(error);
