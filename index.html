@@ -44,6 +44,11 @@
       color: green;
       font-style: italic;
     }
+    #last-updated {
+      margin-top: 10px;
+      color: blue;
+      font-style: italic;
+    }
     #info-bar {
       display: flex;
       gap: 20px;
@@ -178,8 +183,10 @@
 
         if (data.length > 0) {
           const commitDate = new Date(data[0].commit.committer.date);
-          document.getElementById("last-updated").innerText =
-            commitDate.toUTCString();
+          // document.getElementById("last-updated").innerText =
+          //   commitDate.toUTCString();
+
+            document.getElementById('last-updated').innerText = `✅ CSV Last Updated: ${commitDate.toUTCString()}`;
         } else {
           document.getElementById("last-updated").innerText =
             "No commit history found.";
