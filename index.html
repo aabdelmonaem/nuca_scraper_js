@@ -186,7 +186,7 @@
           // document.getElementById("last-updated").innerText =
           //   commitDate.toUTCString();
 
-            document.getElementById('last-updated').innerText = `✅ CSV Last Updated: ${commitDate.toUTCString()}`;
+            document.getElementById('last-updated').innerText = `✅ CSV Last Updated: ${commitDate.toLocaleString()}`;
         } else {
           document.getElementById("last-updated").innerText =
             "No commit history found.";
