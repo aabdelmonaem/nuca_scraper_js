@@ -89,9 +89,11 @@
     const filePath = "all_zones_combined.csv";
 
     async function loadCSV() {
+      const url = "https://cdn.jsdelivr.net/gh/aabdelmonaem/nuca_scraper_js@main/all_zones_combined.csv"; // 🔁 Replace with your GitHub username & repo
       try {
-        const response = await fetch(`./all_zones_combined.csv?t=${Date.now()}`);
+        const response = await fetch(url);
         const text = await response.text();
+        
         const parsed = Papa.parse(text, { header: true, skipEmptyLines: true });
         rawData = parsed.data;
 
@@ -104,7 +106,7 @@
 
         filterAndRender();
 
-        fetchLastCommit();
+       // fetchLastCommit();
       } catch (error) {
         document.getElementById('status').textContent = '❌ Failed to load data.';
         console.error(error);
