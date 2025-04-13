@@ -176,29 +176,7 @@
         tbody.appendChild(tr);
       });
     }
-    async function fetchLastCommit() {
-      const url = `https://api.github.com/repos/${owner}/${repo}/commits?path=${filePath}&per_page=1`;
-
-      try {
-        const response = await fetch(url);
-        const data = await response.json();
-
-        if (data.length > 0) {
-          const commitDate = new Date(data[0].commit.committer.date);
-          // document.getElementById("last-updated").innerText =
-          //   commitDate.toUTCString();
-
-            document.getElementById('last-updated').innerText = `✅ CSV Last Updated: ${commitDate.toLocaleString()}`;
-        } else {
-          document.getElementById("last-updated").innerText =
-            "No commit history found.";
-        }
-      } catch (err) {
-        document.getElementById("last-updated").innerText =
-          "Error fetching commit data.";
-        console.error(err);
-      }
-    }
+   
 
     // ⏱ Initial load + refresh every 30 seconds
     loadCSV();
