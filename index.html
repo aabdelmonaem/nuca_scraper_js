@@ -90,7 +90,7 @@
 
     async function loadCSV() {
       //const url = "https://cdn.jsdelivr.net/gh/aabdelmonaem/nuca_scraper_js@main/all_zones_combined.csv"; // 🔁 Replace with your GitHub username & repo
-      const url = `https://raw.githubusercontent.com/aabdelmonaem/nuca_scraper_js/refs/heads/main/all_zones_combined.csv?t=${Date.now()}`
+     const url = "https://cdn.jsdelivr.net/gh/aabdelmonaem/nuca_scraper_js@main/all_zones_combined.csv?t=" + Date.now();
       try {
         const response = await fetch(url);
         const text = await response.text();
